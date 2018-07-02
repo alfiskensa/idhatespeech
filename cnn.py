@@ -1,12 +1,14 @@
 import numpy as np
 import sys
 from sklearn import metrics
+from sklearn.model_selection import train_test_split
 from keras.models import Sequential, load_model
 from keras.layers import Dense, Dropout, Activation
 from keras.layers import Embedding, Flatten
 from keras.layers import Conv1D, GlobalMaxPooling1D
 from keras.callbacks import ModelCheckpoint, ReduceLROnPlateau
 from keras import backend as K
+import matplotlib.pyplot as plt
 import utils
 from keras.preprocessing.sequence import pad_sequences
 
@@ -125,16 +127,47 @@ if __name__ == '__main__':
         filepath = "./models/4cnn-{epoch:02d}-{loss:0.3f}-{acc:0.3f}-{val_loss:0.3f}-{val_acc:0.3f}.hdf5"
         checkpoint = ModelCheckpoint(filepath, monitor="loss", verbose=1, save_best_only=True, mode='min')
         reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.5, patience=2, min_lr=0.000001)
-        model.fit(tweets, labels, batch_size=128, epochs=8, validation_split=0.1, shuffle=True, callbacks=[checkpoint, reduce_lr])
+        history = model.fit(tweets, labels, batch_size=128, epochs=16, validation_split=0.1, shuffle=True, callbacks=[checkpoint, reduce_lr])
         score = model.evaluate(tweets, labels, verbose=0)
-        print('Training score: %.4f %' % score[1])
+        print('Training score: %.4f %%' % (score[1]*100))
         print('Testing....')
         predictions = model.predict(test_tweets, batch_size=128, verbose=1)
         results = zip(map(str, range(len(test_tweets))), np.round(predictions[:, 0]).astype(int))
         utils.save_results_to_csv(results, 'cnn.csv')
+        predicted = model.predict(tweets, batch_size=128, verbose=1)
+        print(metrics.classification_report(labels, np.round(predicted[:, 0]).astype(float)))
+        print('Precision score: %.4f %%' % (metrics.precision_score(labels, np.round(predicted[:, 0]).astype(float), average='weighted')*100))
+        print('Recall score: %.4f %%' % (metrics.recall_score(labels, np.round(predicted[:, 0]).astype(float), average='weighted')*100))
+        print('F1 score: %.4f %%' % (metrics.f1_score(labels, np.round(predicted[:, 0]).astype(float), average='weighted')*100))
+        # list all data in history
+        print(history.history.keys())
+        # summarize history for accuracy
+        plt.plot(history.history['acc'])
+        plt.plot(history.history['val_acc'])
+        plt.title('model accuracy')
+        plt.ylabel('accuracy')
+        plt.xlabel('epoch')
+        plt.legend(['train', 'test'], loc='upper left')
+        plt.show()
+        # summarize history for loss
+        plt.plot(history.history['loss'])
+        plt.plot(history.history['val_loss'])
+        plt.title('model loss')
+        plt.ylabel('loss')
+        plt.xlabel('epoch')
+        plt.legend(['train', 'test'], loc='upper left')
+        plt.show()
     else:
         model = load_model(sys.argv[1])
         print (model.summary())
+        score = model.evaluate(tweets, labels, verbose=0)
+        print('Training score: %.4f %%' % (score[1]*100))
+        print('Testing....')
         predictions = model.predict(test_tweets, batch_size=128, verbose=1)
         results = zip(map(str, range(len(test_tweets))), np.round(predictions[:, 0]).astype(int))
         utils.save_results_to_csv(results, 'cnn.csv')
+        predicted = model.predict(test_tweets, batch_size=128, verbose=1)
+        print(metrics.classification_report(labels, np.round(predicted[:, 0]).astype(float)))
+        print('Precision score: %.4f %%' % (metrics.precision_score(labels, np.round(predicted[:, 0]).astype(float), average='weighted')*100))
+        print('Recall score: %.4f %%' % (metrics.recall_score(labels, np.round(predicted[:, 0]).astype(float), average='weighted')*100))
+        print('F1 score: %.4f %%' % (metrics.f1_score(labels, np.round(predicted[:, 0]).astype(float), average='weighted')*100))

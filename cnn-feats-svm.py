@@ -1,4 +1,4 @@
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, cross_val_score
 from sklearn import svm
 from sklearn import metrics
 from numpy import loadtxt
@@ -29,6 +29,8 @@ if TRAIN:
     if CLASSIFIER == 'SVM':
         model = svm.LinearSVC(C=C,verbose=1, max_iter=MAX_ITER)
         model.fit(X_train, y_train)
+    result = cross_val_score(model, X_train, y_train, cv=10)
+    print(result.mean())
 
     print (model)
     del X_train
@@ -38,6 +40,9 @@ if TRAIN:
     val_preds = model.predict(X_val)
     accuracy = metrics.accuracy_score(y_val, val_preds)
     print("Val Accuracy: %.2f%%" % (accuracy * 100.0))
+    print("Val Precision: %.2f%%" % (metrics.precision_score(y_val, val_preds, average='weighted') * 100.0))
+    print("Val Recall: %.2f%%" % (metrics.recall_score(y_val, val_preds, average='weighted') * 100.0))
+    print("Val F1-Score: %.2f%%" % (metrics.f1_score(y_val, val_preds, average='weighted') * 100.0))
     print(metrics.classification_report(y_val, val_preds))
     
 
