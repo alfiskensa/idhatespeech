@@ -112,70 +112,53 @@ if __name__ == '__main__':
     test_tweets, test_labels = process_tweets(TEST_PROCESSED_FILE, test_file=True)
     test_tweets = pad_sequences(test_tweets, maxlen=max_length, padding='post')
     #balancing dataset
-    #tweets, labels = RandomUnderSampler(ratio='majority', random_state=42).fit_sample(tweets, labels)
+    #tweets, labels = RandomUnderSampler(ratio='majority').fit_sample(tweets, labels)
     #split dataset
     tweets, X_test, labels, y_test = train_test_split(tweets, labels, test_size=0.1)
-    # define 10-fold cross validation test harness
-    kfold = StratifiedKFold(n_splits=10, shuffle=True, random_state=42)
-    cvscores = []
-    precscores = []
-    recallscores = []
-    f1scores = []
-    i = 1;
     if train:
-        for train, test in kfold.split(tweets, labels):
-                X_train, y_train = tweets[train], labels[train]
-                x_val, y_val = tweets[test], labels[test]
-                y_train = y_train.reshape((len(y_train), 1))
-                model = Sequential()
-                model.add(Embedding(vocab_size + 1, dim, weights=[embedding_matrix], input_length=max_length))
-                model.add(Dropout(0.4))
-                model.add(Conv1D(filters, kernel_size, padding='valid', activation='relu', strides=1))
-                model.add(Conv1D(300, kernel_size, padding='valid', activation='relu', strides=1))
-                model.add(Conv1D(150, kernel_size, padding='valid', activation='relu', strides=1))
-                model.add(Conv1D(75, kernel_size, padding='valid', activation='relu', strides=1))
-                model.add(Flatten())
-                model.add(Dense(600))
-                model.add(Dropout(0.5))
-                model.add(Activation('relu'))
-                model.add(Dense(1))
-                model.add(Activation('sigmoid'))
-                model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
-                #filepath = "./models/4cnn-{epoch:02d}-{loss:0.3f}-{acc:0.3f}-{val_loss:0.3f}-{val_acc:0.3f}.hdf5"
-                filepath = "./models/4cnn-best_model.hdf5"
-                checkpoint = ModelCheckpoint(filepath, monitor="loss", verbose=1, save_best_only=True, mode='min')
-                reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.5, patience=2, min_lr=0.000001)
-                print("Fold ",i)
-                history = model.fit(X_train, y_train, batch_size=128, epochs=16, validation_data=(x_val, y_val), callbacks=[checkpoint, reduce_lr])
-                score = model.evaluate(x_val, y_val, verbose=0)
-                print("Testing...")
-                predicted = model.predict(x_val, batch_size=128, verbose=1)
-                predicted = np.round(predicted[:, 0]).astype(float)
-                print('Accuracy score: %.4f %%' % (score[1]*100))
-                print(metrics.classification_report(y_val, predicted))
-                print(metrics.precision_recall_fscore_support(y_val, predicted))
-                cvscores.append(score[1] * 100)
-                precscores.append(metrics.precision_score(y_val, predicted, average='weighted')*100)
-                recallscores.append(metrics.recall_score(y_val, predicted, average='weighted')*100)
-                f1scores.append(metrics.f1_score(y_val, predicted, average='weighted')*100)
-                i = i+1
-        print('Average Results:')
-        print("Accuracy Score: %.2f%% (+/- %.2f%%)" % (np.mean(cvscores), np.std(cvscores)))
-        print(cvscores)
-        print('Precision score: %.4f %%' % (np.mean(precscores)))
-        print('Recall score: %.4f %%' % (np.mean(recallscores)))
-        print('F1 score: %.4f %%' % (np.mean(f1scores)))
-        print('Testing on Test Set...')
-        predictions = model.predict(X_test, batch_size=128, verbose=1)
-        results = zip(map(str, range(len(X_test))), np.round(predictions[:, 0]).astype(int))
-        utils.save_results_to_csv(results, 'cnn.csv')
-        predictions = np.round(predictions[:,0]).astype(float)
+        model = Sequential()
+        model.add(Embedding(vocab_size + 1, dim, weights=[embedding_matrix], input_length=max_length))
+        model.add(Dropout(0.4))
+        model.add(Conv1D(filters, kernel_size, padding='valid', activation='relu', strides=1))
+        model.add(Conv1D(300, kernel_size, padding='valid', activation='relu', strides=1))
+        model.add(Conv1D(150, kernel_size, padding='valid', activation='relu', strides=1))
+        model.add(Conv1D(75, kernel_size, padding='valid', activation='relu', strides=1))
+        model.add(Flatten())
+        model.add(Dense(600))
+        model.add(Dropout(0.5))
+        model.add(Activation('relu'))
+        model.add(Dense(1))
+        model.add(Activation('sigmoid'))
+        model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
+        #filepath = "./models/4cnn-{epoch:02d}-{loss:0.3f}-{acc:0.3f}-{val_loss:0.3f}-{val_acc:0.3f}.hdf5"
+        filepath = "./models/4cnn-best_model.hdf5"
+        checkpoint = ModelCheckpoint(filepath, monitor="loss", verbose=1, save_best_only=True, mode='min')
+        reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.5, patience=2, min_lr=0.000001)
+        history = model.fit(tweets, labels, batch_size=128, epochs=16, validation_data=(X_test, y_test), callbacks=[checkpoint, reduce_lr])
+        print("Testing...")
         score = model.evaluate(X_test, y_test, verbose=0)
-        print('Accuracy Test score: %.4f %%' % (score[1]*100))
-        print(metrics.classification_report(y_test, predictions))
-        print('Precision: %.4f %%' % (metrics.precision_score(y_test, predictions, average='weighted')*100))
-        print('Recal: %.4f %%' % (metrics.recall_score(y_test, predictions, average='weighted')*100))
-        print('F1-Score: %.4f %%' % (metrics.f1_score(y_test, predictions, average='weighted')*100))
+        print('Accuracy score: %.4f %%' % (score[1]*100))
+        predicted = model.predict(X_test, batch_size=128, verbose=1)
+        results = zip(map(str, range(len(X_test))), np.round(predicted[:, 0]).astype(int))
+        utils.save_results_to_csv(results, 'cnn.csv')
+        # list all data in history
+        print(history.history.keys())
+        # summarize history for accuracy
+        plt.plot(history.history['acc'])
+        plt.plot(history.history['val_acc'])
+        plt.title('model accuracy')
+        plt.ylabel('accuracy')
+        plt.xlabel('epoch')
+        plt.legend(['train', 'test'], loc='upper left')
+        plt.show()
+        # summarize history for loss
+        plt.plot(history.history['loss'])
+        plt.plot(history.history['val_loss'])
+        plt.title('model loss')
+        plt.ylabel('loss')
+        plt.xlabel('epoch')
+        plt.legend(['train', 'test'], loc='upper left')
+        plt.show()
     else:
         model = load_model(sys.argv[1])
         print (model.summary())
